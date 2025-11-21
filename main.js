@@ -1,42 +1,4 @@
-import { saveMood, saveMemory, saveSpecialMessage, getData } from './index.html';
-
 //RECUPERO DATI//
-function saveMemoryWithDate() {
-    const memories = getData("memories") || [];
-    const newMemory = {
-        text: document.getElementById("memory-text-input").value,
-        img: document.getElementById("memory-preview-img").src || null,
-        audio: document.getElementById("memory-preview-audio").src || null,
-        date: new Date().toISOString()
-    };
-    memories.push(newMemory);
-    saveData("memories", memories);
-    renderMemorySection();
-}
-
-function getMemories() {
-    return getData("memories") || [];
-}
-
-function renderMemorySection() {
-    const memories = getMemories();
-    const memoryText = document.getElementById("memory-text");
-    const memoryImg = document.getElementById("memory-img");
-    const memoryAudio = document.getElementById("memory-audio");
-
-    if (memories.length > 0) {
-        const last = memories[memories.length - 1];
-        memoryText.innerText = last.text || "";
-        memoryImg.src = last.img || "";
-        memoryAudio.src = last.audio || "";
-        memoryImg.style.display = last.img ? "block" : "none";
-        memoryAudio.style.display = last.audio ? "block" : "none";
-    } else {
-        memoryText.innerText = "";
-        memoryImg.style.display = "none";
-        memoryAudio.style.display = "none";
-    }
-}
 
 
 
@@ -156,7 +118,6 @@ function login() {
 
         // Utente esistente → enterHome con isNewUser = false
         enterHome();
-        registerDeviceForNotifications();
     } else {
         alert("Password errata o non registrata!");
     }
@@ -172,7 +133,6 @@ function logout() {
     document.getElementById("intro").style.display = "none";
     document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
     document.getElementById('flip-clock').style.display = 'none';
-    document.getElementById("mood-widget").style.display = 'none';
 
     // Mostra blocchi login/registrazione
     document.getElementById("login").style.display = "block";
@@ -216,7 +176,9 @@ function enterHome() {
     loadLastMoodWidget();
 }
 
-
+document.addEventListener('DOMContentLoaded', async () => {
+    await renderCalendar();
+});
 
 // ---------- NAVIGAZIONE SEZIONI ----------
 function goHome() {
@@ -525,12 +487,22 @@ let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let currentMemoryIndex = 0;
 
-function renderCalendar() {
+async function renderCalendar() {
+    // Recupera memorie da Firestore
+    const memoriesArray = await window.getMemories();
+
+    // Trasforma in oggetto keyed per data
+    let memories = {};
+    memoriesArray.forEach(m => {
+        if (!memories[m.date]) memories[m.date] = [];
+        memories[m.date].push({ text: m.text, img: m.img, audio: m.audio || null });
+    });
+
     const grid = document.getElementById('calendar-grid');
     grid.innerHTML = '';
     const monthLabel = document.getElementById('month-label');
-    const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+    const monthNames = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
+                        "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
     monthLabel.innerText = `${monthNames[currentMonth]} ${currentYear}`;
 
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
@@ -542,14 +514,17 @@ function renderCalendar() {
 
     for (let d = 1; d <= daysInMonth; d++) {
         const dayDiv = document.createElement('div'); dayDiv.className = 'calendar-day';
-        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const dayMemories = memories[dateStr] || [];
 
         if (dayMemories.length > 0) {
             dayDiv.style.backgroundImage = `url('${dayMemories[0].img}')`;
             dayDiv.style.backgroundSize = 'cover';
             dayDiv.style.backgroundPosition = 'center';
-        } else { dayDiv.style.backgroundImage = 'none'; dayDiv.style.backgroundColor = '#fff'; }
+        } else {
+            dayDiv.style.backgroundImage = 'none';
+            dayDiv.style.backgroundColor = '#fff';
+        }
 
         const span = document.createElement('span'); span.innerText = d; span.className = 'day-number';
         dayDiv.appendChild(span);
@@ -563,19 +538,23 @@ function prevMonth() { currentMonth--; if (currentMonth < 0) { currentMonth = 11
 function nextMonth() { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderCalendar(); }
 
 // ---------- OVERLAY MEMORIE ----------
-function openOverlayDay(dateStr) {
+async function openOverlayDay(dateStr) {
     const overlay = document.getElementById('timeline-overlay');
     overlay.style.display = 'flex';
+
     const container = document.getElementById('add-memory-container');
     container.dataset.date = dateStr;
     container.querySelector('#new-img-input').value = '';
     container.querySelector('#new-text-input').value = '';
     document.getElementById('image-preview').style.display = 'none';
 
-    const dayMemories = memories[dateStr] || [];
+    // --- Recupera memorie dal DB ---
+    const allMemories = await window.getMemories();
+    let dayMemories = allMemories.filter(m => m.date === dateStr);
+
     if (dayMemories.length > 0) {
         currentMemoryIndex = 0;
-        showMemoryInOverlay(dateStr, currentMemoryIndex);
+        showMemoryInOverlay(dayMemories, currentMemoryIndex);
         document.getElementById('remove-memory-btn').style.display = 'inline-block';
         document.getElementById('prev-memory-btn').style.display = dayMemories.length > 1 ? 'inline-block' : 'none';
         document.getElementById('next-memory-btn').style.display = dayMemories.length > 1 ? 'inline-block' : 'none';
@@ -591,10 +570,7 @@ function openOverlayDay(dateStr) {
     container.style.display = 'block';
 }
 
-function showMemoryInOverlay(dateStr, index) {
-    const dayMemories = memories[dateStr];
-    if (!dayMemories || dayMemories.length === 0) return;
-
+function showMemoryInOverlay(dayMemories, index) {
     const mem = dayMemories[index];
     document.getElementById('overlay-img').src = mem.img || '';
     document.getElementById('overlay-text').innerText = mem.text || '';
@@ -620,22 +596,11 @@ function addMemoryFromCalendar() {
     }
 
     const reader = new FileReader();
-    reader.onload = async function (e) {
-        if (!memories[dateStr]) memories[dateStr] = [];
+    reader.onload = async function(e) {
         const memoryEntry = { text, img: e.target.result, audio: null, date: dateStr };
-
-        memories[dateStr].push(memoryEntry);
-        localStorage.setItem('memories', JSON.stringify(memories));
-        renderCalendar();
-        openOverlayDay(dateStr); // ricarica overlay con nuova immagine
-
-        // SALVATAGGIO FIRESTORE
-        try {
-            const id = await saveMemory(memoryEntry);
-            console.log("Memory salvata su Firestore con ID:", id);
-        } catch (err) {
-            console.error("Errore salvataggio memory su Firestore:", err);
-        }
+        await window.saveMemory(memoryEntry); // <-- Salva su Firebase
+        renderCalendar(); // Aggiorna vista
+        openOverlayDay(dateStr); // Mostra overlay con nuovo ricordo
     };
     reader.readAsDataURL(imgFile);
 }
@@ -1028,7 +993,7 @@ function saveMood() {
     const entry = {
         emoji: selectedMood.emoji,
         note,
-        date: new Date().toISOString(),
+        date: new Date().toLocaleString(),
         color: selectedMood.color
     };
 
@@ -1038,7 +1003,7 @@ function saveMood() {
 
     updateMoodHistory();
     updateWidget(entry);
-    saveMood(entry).then(id => console.log("Mood salvato con ID:", id));
+
     document.getElementById("mood-note").value = "";
 }
 
@@ -1099,7 +1064,7 @@ function updateWidget(entry) {
 }
 
 function loadLastMoodWidget() {
-    const widget = document.getElementById("mood-widget");
+      const widget = document.getElementById("mood-widget");
     if (!widget) return;
 
     const lastMood = localStorage.getItem("lastMood");
@@ -1739,23 +1704,15 @@ function resetPhotobooth() {
     photoboothShots = [];
     shotIndex = 0;
 }
-
 // ---------- MESSAGGI SPECIALI ----------
 let specials = JSON.parse(localStorage.getItem('specials')) || [];
 function addSpecialMessage() {
     const val = document.getElementById('special-input').value.trim();
     if (!val) return;
-
-    const messageEntry = { text: val, createdAt: new Date().toISOString() };
-    specials.push(messageEntry);
+    specials.push(val);
     localStorage.setItem('specials', JSON.stringify(specials));
     document.getElementById('special-input').value = '';
     renderSpecials();
-
-    // SALVATAGGIO FIRESTORE
-    saveSpecialMessage(messageEntry)
-        .then(id => console.log("Messaggio speciale salvato su Firestore con ID:", id))
-        .catch(err => console.error("Errore salvataggio message su Firestore:", err));
 }
 function renderSpecials() {
     const container = document.querySelector('.special-messages');
@@ -1763,41 +1720,10 @@ function renderSpecials() {
     specials.forEach(msg => { const p = document.createElement('p'); p.innerText = msg; container.appendChild(p); });
 }
 renderSpecials();
-
-async function loadAllData() {
-    // MEMORIES
-    const memoriesData = await getData("memories");
-    memoriesData.forEach(entry => {
-        const date = entry.date;
-        if (!memories[date]) memories[date] = [];
-        memories[date].push({ text: entry.text, img: entry.img, audio: entry.audio || null });
-    });
-    renderCalendar();
-
-    // SPECIALS
-    const specialsData = await getData("specialMessages");
-    specials = specialsData.map(e => ({ text: e.text, createdAt: e.createdAt }));
-    renderSpecials();
-
-    // MOOD
-    const moodsData = await getData("moods");
-    moodHistory = moodsData.map(e => ({
-        emoji: e.emoji,
-        note: e.note,
-        color: e.color,
-        date: e.date
-    }));
-    updateMoodHistory();
-    if (moodHistory.length > 0) updateWidget(moodHistory[0]);
-}
-
-// Chiama la funzione quando il DOM è pronto
 document.addEventListener("DOMContentLoaded", () => {
-    loadAllData();
+    document.getElementById("mood-widget").style.display = "none";
 });
 
-
-//RESET
 function resetAllData() {
     // Rimuove tutti i dati degli utenti
     localStorage.removeItem("loveDashboardUsers");

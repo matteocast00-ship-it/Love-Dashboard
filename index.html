@@ -295,21 +295,18 @@
             <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
             <h3>Messaggi speciali</h3>
             <div class="special-messages"></div>
-            <input type="text" id="special-input" class="memory-input" placeholder="Scrivi un messaggio speciale">
+            <input type="text" id="special-input" placeholder="Scrivi un messaggio speciale">
             <button class="fancy-btn" onclick="addSpecialMessage()">Aggiungi</button>
         </div>
     </div>
 
-    <script type="module" src="main.js"></script>
+    <script src="main.js"></script>
 
     <script type="module">
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-        import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
-        import { collection, addDoc, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-
-        // Config Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAsIH1r4iUWLgMG-FrObYbmMGjVZRaem4g",
             authDomain: "lovedashboard.firebaseapp.com",
@@ -319,123 +316,52 @@
             appId: "1:118792260540:web:ba570888511d9f49c239b9"
         };
 
-        // Inizializza Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const messaging = getMessaging(app);
-
-        // Recupera o crea un deviceId persistente
-        let deviceId = localStorage.getItem("deviceId");
-        if (!deviceId) {
-            deviceId = crypto.randomUUID();
-            localStorage.setItem("deviceId", deviceId);
-        }
-
-        // Registrazione Service Worker su GitHub Pages
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/Love-Dashboard/firebase-messaging-sw.js', { scope: '/Love-Dashboard/' })
-                .then(registration => {
-                    console.log('Service Worker registrato:', registration);
-                })
-                .catch(err => console.error('Errore registrazione Service Worker:', err));
-        }
-
-        // Richiede permessi notifiche e salva token
-        export async function registerDeviceForNotifications() {
-            try {
-                const permission = await Notification.requestPermission();
-                if (permission !== "granted") {
-                    console.warn("Permesso notifiche negato");
-                    return;
-                }
-
-                const token = await getToken(messaging, {
-                    vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
-                });
-
-                console.log("Token dispositivo:", token);
-                localStorage.setItem("deviceToken", token);
-
-                // Salva token in Firestore
-                await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
-                    token,
-                    createdAt: new Date().toISOString()
-                });
-
-                console.log("Token salvato in Firestore!");
-            } catch (err) {
-                console.error("Errore durante la registrazione notifiche:", err);
-            }
-        }
-
-        // Aggiorna token (es. se cambia)
-        export async function refreshToken() {
-            const token = await getToken(messaging, {
-                vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
-            });
-            localStorage.setItem("deviceToken", token);
-            await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
-                token,
-                updatedAt: new Date().toISOString()
-            }, { merge: true });
-            console.log("Token aggiornato in Firestore");
-        }
-
-        // Notifiche foreground
-        onMessage(messaging, (payload) => {
-            new Notification(payload.notification.title, {
-                body: payload.notification.body,
-                icon: payload.notification.icon || "/Love-Dashboard/icons/icon-192.png"
-            });
-        });
 
         const BASE_PATH = "pair";
         const COUPLE_DOC = "fixedCouple";
 
-        // --- Salvataggio generico ---
-        export async function saveData(section, data) {
-            try {
-                const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/${section}`);
-                const docRef = await addDoc(colRef, data);
-                console.log(`Documento salvato in ${section} con ID:`, docRef.id);
-                return docRef.id;
-            } catch (err) {
-                console.error(`Errore nel salvare ${section}:`, err);
-            }
-        }
+        // ------------------ FUNZIONI GLOBALI ------------------
 
-        // --- Lettura generica ---
-        export async function getData(section) {
-            try {
-                const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/${section}`);
-                const snapshot = await getDocs(colRef);
-                const result = [];
-                snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
-                return result;
-            } catch (err) {
-                console.error(`Errore nel leggere ${section}:`, err);
-                return [];
-            }
-        }
+        // Memorie
+        window.saveMemory = async function (memoryEntry) {
+            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/memories`);
+            return addDoc(colRef, memoryEntry);
+        };
+        window.getMemories = async function () {
+            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/memories`);
+            const snapshot = await getDocs(colRef);
+            const result = [];
+            snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
+            return result;
+        };
 
-        // --- Esempio: salva un sentimento ---
-        export async function saveMood(moodEntry) {
-            return saveData("moods", moodEntry);
-        }
+        // Sentimenti
+        window.saveMood = async function (moodEntry) {
+            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/moods`);
+            return addDoc(colRef, moodEntry);
+        };
+        window.getMoods = async function () {
+            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/moods`);
+            const snapshot = await getDocs(colRef);
+            const result = [];
+            snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
+            return result;
+        };
 
-        // --- Esempio: salva un ricordo ---
-        export async function saveMemory(memoryEntry) {
-            return saveData("memories", memoryEntry);
-        }
-
-        // --- Esempio: salva un messaggio speciale ---
-        export async function saveSpecialMessage(messageEntry) {
-            return saveData("specialMessages", messageEntry);
-        }
-
-        // Rendiamo le funzioni globali
-        window.registerDeviceForNotifications = registerDeviceForNotifications;
-        window.refreshToken = refreshToken;
+        // Messaggi speciali
+        window.saveSpecialMessage = async function (messageEntry) {
+            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/specialMessages`);
+            return addDoc(colRef, messageEntry);
+        };
+        window.getSpecialMessages = async function () {
+            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/specialMessages`);
+            const snapshot = await getDocs(colRef);
+            const result = [];
+            snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
+            return result;
+        };
     </script>
 </body>
 
