@@ -295,7 +295,7 @@
             <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
             <h3>Messaggi speciali</h3>
             <div class="special-messages"></div>
-            <input type="text" id="special-input" placeholder="Scrivi un messaggio speciale">
+            <input type="text" id="special-input" class="memory-input" placeholder="Scrivi un messaggio speciale">
             <button class="fancy-btn" onclick="addSpecialMessage()">Aggiungi</button>
         </div>
     </div>
@@ -307,6 +307,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { collection, addDoc, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
 
         // Config Firebase
         const firebaseConfig = {
@@ -387,6 +389,50 @@
                 icon: payload.notification.icon || "/Love-Dashboard/icons/icon-192.png"
             });
         });
+
+        const BASE_PATH = "pair";
+        const COUPLE_DOC = "fixedCouple";
+
+        // --- Salvataggio generico ---
+        export async function saveData(section, data) {
+            try {
+                const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/${section}`);
+                const docRef = await addDoc(colRef, data);
+                console.log(`Documento salvato in ${section} con ID:`, docRef.id);
+                return docRef.id;
+            } catch (err) {
+                console.error(`Errore nel salvare ${section}:`, err);
+            }
+        }
+
+        // --- Lettura generica ---
+        export async function getData(section) {
+            try {
+                const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/${section}`);
+                const snapshot = await getDocs(colRef);
+                const result = [];
+                snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
+                return result;
+            } catch (err) {
+                console.error(`Errore nel leggere ${section}:`, err);
+                return [];
+            }
+        }
+
+        // --- Esempio: salva un sentimento ---
+        export async function saveMood(moodEntry) {
+            return saveData("moods", moodEntry);
+        }
+
+        // --- Esempio: salva un ricordo ---
+        export async function saveMemory(memoryEntry) {
+            return saveData("memories", memoryEntry);
+        }
+
+        // --- Esempio: salva un messaggio speciale ---
+        export async function saveSpecialMessage(messageEntry) {
+            return saveData("specialMessages", messageEntry);
+        }
 
         // Rendiamo le funzioni globali
         window.registerDeviceForNotifications = registerDeviceForNotifications;

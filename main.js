@@ -1,3 +1,5 @@
+import { saveMood, saveMemory, saveSpecialMessage, getData } from './index.html';
+
 //RECUPERO DATI//
 function saveMemoryWithDate() {
     const memories = getData("memories") || [];
@@ -618,12 +620,22 @@ function addMemoryFromCalendar() {
     }
 
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = async function (e) {
         if (!memories[dateStr]) memories[dateStr] = [];
-        memories[dateStr].push({ text, img: e.target.result, audio: null });
+        const memoryEntry = { text, img: e.target.result, audio: null, date: dateStr };
+
+        memories[dateStr].push(memoryEntry);
         localStorage.setItem('memories', JSON.stringify(memories));
         renderCalendar();
         openOverlayDay(dateStr); // ricarica overlay con nuova immagine
+
+        // SALVATAGGIO FIRESTORE
+        try {
+            const id = await saveMemory(memoryEntry);
+            console.log("Memory salvata su Firestore con ID:", id);
+        } catch (err) {
+            console.error("Errore salvataggio memory su Firestore:", err);
+        }
     };
     reader.readAsDataURL(imgFile);
 }
@@ -1016,7 +1028,7 @@ function saveMood() {
     const entry = {
         emoji: selectedMood.emoji,
         note,
-        date: new Date().toLocaleString(),
+        date: new Date().toISOString(),
         color: selectedMood.color
     };
 
@@ -1026,7 +1038,7 @@ function saveMood() {
 
     updateMoodHistory();
     updateWidget(entry);
-
+    saveMood(entry).then(id => console.log("Mood salvato con ID:", id));
     document.getElementById("mood-note").value = "";
 }
 
@@ -1727,15 +1739,23 @@ function resetPhotobooth() {
     photoboothShots = [];
     shotIndex = 0;
 }
+
 // ---------- MESSAGGI SPECIALI ----------
 let specials = JSON.parse(localStorage.getItem('specials')) || [];
 function addSpecialMessage() {
     const val = document.getElementById('special-input').value.trim();
     if (!val) return;
-    specials.push(val);
+
+    const messageEntry = { text: val, createdAt: new Date().toISOString() };
+    specials.push(messageEntry);
     localStorage.setItem('specials', JSON.stringify(specials));
     document.getElementById('special-input').value = '';
     renderSpecials();
+
+    // SALVATAGGIO FIRESTORE
+    saveSpecialMessage(messageEntry)
+        .then(id => console.log("Messaggio speciale salvato su Firestore con ID:", id))
+        .catch(err => console.error("Errore salvataggio message su Firestore:", err));
 }
 function renderSpecials() {
     const container = document.querySelector('.special-messages');
@@ -1743,10 +1763,41 @@ function renderSpecials() {
     specials.forEach(msg => { const p = document.createElement('p'); p.innerText = msg; container.appendChild(p); });
 }
 renderSpecials();
+
+async function loadAllData() {
+    // MEMORIES
+    const memoriesData = await getData("memories");
+    memoriesData.forEach(entry => {
+        const date = entry.date;
+        if (!memories[date]) memories[date] = [];
+        memories[date].push({ text: entry.text, img: entry.img, audio: entry.audio || null });
+    });
+    renderCalendar();
+
+    // SPECIALS
+    const specialsData = await getData("specialMessages");
+    specials = specialsData.map(e => ({ text: e.text, createdAt: e.createdAt }));
+    renderSpecials();
+
+    // MOOD
+    const moodsData = await getData("moods");
+    moodHistory = moodsData.map(e => ({
+        emoji: e.emoji,
+        note: e.note,
+        color: e.color,
+        date: e.date
+    }));
+    updateMoodHistory();
+    if (moodHistory.length > 0) updateWidget(moodHistory[0]);
+}
+
+// Chiama la funzione quando il DOM è pronto
 document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("mood-widget").style.display = "none";
+    loadAllData();
 });
 
+
+//RESET
 function resetAllData() {
     // Rimuove tutti i dati degli utenti
     localStorage.removeItem("loveDashboardUsers");
