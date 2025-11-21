@@ -24,7 +24,7 @@ messaging.onBackgroundMessage(function(payload) {
   const notificationTitle = payload.notification?.title || 'Nuova notifica ❤️';
   const notificationOptions = {
     body: payload.notification?.body || 'Apri l’app per vedere i dettagli!',
-    icon: payload.notification?.icon || '/Love-Dashboard/icons/icon-192.png',
+    icon: payload.notification?.icon || '40+ Cute Valentine’s Day Wallpaper Ideas _ Mixed Cute Stuffs.jpeg',
     badge: payload.notification?.badge || '/Love-Dashboard/icons/icon-192.png',
     data: payload.data || {}
   };
