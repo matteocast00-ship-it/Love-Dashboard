@@ -486,16 +486,16 @@ if (memoriesRaw) {
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let currentMemoryIndex = 0;
+let dayMemories = [];
 
 async function renderCalendar() {
-    // Recupera memorie da Firestore
-    const memoriesArray = await window.getMemories();
+    const allMemories = await window.getMemories(); // prende tutte le memorie dal DB
 
     // Trasforma in oggetto keyed per data
-    let memories = {};
-    memoriesArray.forEach(m => {
-        if (!memories[m.date]) memories[m.date] = [];
-        memories[m.date].push({ text: m.text, img: m.img, audio: m.audio || null });
+    const memoriesByDate = {};
+    allMemories.forEach(m => {
+        if (!memoriesByDate[m.date]) memoriesByDate[m.date] = [];
+        memoriesByDate[m.date].push({ id: m.id, text: m.text, img: m.img, audio: m.audio || null });
     });
 
     const grid = document.getElementById('calendar-grid');
@@ -509,16 +509,19 @@ async function renderCalendar() {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     for (let i = 0; i < firstDay; i++) {
-        const empty = document.createElement('div'); empty.className = 'empty'; grid.appendChild(empty);
+        const empty = document.createElement('div'); 
+        empty.className = 'empty'; 
+        grid.appendChild(empty);
     }
 
     for (let d = 1; d <= daysInMonth; d++) {
-        const dayDiv = document.createElement('div'); dayDiv.className = 'calendar-day';
+        const dayDiv = document.createElement('div'); 
+        dayDiv.className = 'calendar-day';
         const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const dayMemories = memories[dateStr] || [];
+        const dayMems = memoriesByDate[dateStr] || [];
 
-        if (dayMemories.length > 0) {
-            dayDiv.style.backgroundImage = `url('${dayMemories[0].img}')`;
+        if (dayMems.length > 0) {
+            dayDiv.style.backgroundImage = `url('${dayMems[0].img}')`;
             dayDiv.style.backgroundSize = 'cover';
             dayDiv.style.backgroundPosition = 'center';
         } else {
@@ -526,10 +529,12 @@ async function renderCalendar() {
             dayDiv.style.backgroundColor = '#fff';
         }
 
-        const span = document.createElement('span'); span.innerText = d; span.className = 'day-number';
+        const span = document.createElement('span'); 
+        span.innerText = d; 
+        span.className = 'day-number';
         dayDiv.appendChild(span);
-        dayDiv.onclick = () => openOverlayDay(dateStr);
 
+        dayDiv.onclick = async () => await openOverlayDay(dateStr); // apri overlay
         grid.appendChild(dayDiv);
     }
 }
@@ -537,24 +542,23 @@ async function renderCalendar() {
 function prevMonth() { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } renderCalendar(); }
 function nextMonth() { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderCalendar(); }
 
-// ---------- OVERLAY MEMORIE ----------
+// --- OVERLAY MEMORIE ---
 async function openOverlayDay(dateStr) {
     const overlay = document.getElementById('timeline-overlay');
     overlay.style.display = 'flex';
-
     const container = document.getElementById('add-memory-container');
     container.dataset.date = dateStr;
     container.querySelector('#new-img-input').value = '';
     container.querySelector('#new-text-input').value = '';
     document.getElementById('image-preview').style.display = 'none';
 
-    // --- Recupera memorie dal DB ---
+    // recupera memorie dal DB
     const allMemories = await window.getMemories();
-    let dayMemories = allMemories.filter(m => m.date === dateStr);
+    dayMemories = allMemories.filter(m => m.date === dateStr);
 
     if (dayMemories.length > 0) {
         currentMemoryIndex = 0;
-        showMemoryInOverlay(dayMemories, currentMemoryIndex);
+        showMemoryInOverlay(currentMemoryIndex);
         document.getElementById('remove-memory-btn').style.display = 'inline-block';
         document.getElementById('prev-memory-btn').style.display = dayMemories.length > 1 ? 'inline-block' : 'none';
         document.getElementById('next-memory-btn').style.display = dayMemories.length > 1 ? 'inline-block' : 'none';
@@ -570,7 +574,8 @@ async function openOverlayDay(dateStr) {
     container.style.display = 'block';
 }
 
-function showMemoryInOverlay(dayMemories, index) {
+function showMemoryInOverlay(index) {
+    if (dayMemories.length === 0) return;
     const mem = dayMemories[index];
     document.getElementById('overlay-img').src = mem.img || '';
     document.getElementById('overlay-text').innerText = mem.text || '';
@@ -583,67 +588,48 @@ function showMemoryInOverlay(dayMemories, index) {
     document.getElementById('next-memory-btn').style.display = dayMemories.length > 1 ? 'inline-block' : 'none';
 }
 
-function closeOverlay() { document.getElementById('timeline-overlay').style.display = 'none'; }
-
+// --- AGGIUNGI MEMORIA ---
 function addMemoryFromCalendar() {
     const imgFile = document.getElementById('new-img-input').files[0];
     const text = document.getElementById('new-text-input').value.trim();
     const dateStr = document.getElementById('add-memory-container').dataset.date;
 
-    if (!imgFile || !text) {
-        alert("Inserisci immagine e testo!");
-        return;
-    }
+    if (!imgFile || !text) { alert("Inserisci immagine e testo!"); return; }
 
     const reader = new FileReader();
     reader.onload = async function(e) {
         const memoryEntry = { text, img: e.target.result, audio: null, date: dateStr };
-        await window.saveMemory(memoryEntry); // <-- Salva su Firebase
-        renderCalendar(); // Aggiorna vista
-        openOverlayDay(dateStr); // Mostra overlay con nuovo ricordo
+        await window.saveMemory(memoryEntry);
+        await renderCalendar();
+        await openOverlayDay(dateStr); // riapri overlay con nuova memoria
     };
     reader.readAsDataURL(imgFile);
 }
 
-function removeMemory() {
-    const dateStr = document.getElementById('add-memory-container').dataset.date;
-    const dayMemories = memories[dateStr];
-    if (!dayMemories || dayMemories.length === 0) return;
+// --- RIMUOVI MEMORIA ---
+async function removeMemory() {
+    if (dayMemories.length === 0) return;
+    if (!confirm("Sei sicuro di voler rimuovere questo ricordo?")) return;
 
-    if (confirm("Sei sicuro di voler rimuovere questo ricordo?")) {
-        dayMemories.splice(currentMemoryIndex, 1);
-        if (dayMemories.length === 0) delete memories[dateStr];
-        localStorage.setItem('memories', JSON.stringify(memories));
-        renderCalendar();
-
-        if (dayMemories.length > 0) {
-            currentMemoryIndex = Math.max(0, currentMemoryIndex - 1);
-            showMemoryInOverlay(dateStr, currentMemoryIndex);
-        } else {
-            openOverlayDay(dateStr); // torna alla vista "vuota"
-        }
-    }
-
+    const memToRemove = dayMemories[currentMemoryIndex];
+    await window.deleteMemory(memToRemove.id); // crea funzione deleteMemory su Firebase
+    await renderCalendar();
+    await openOverlayDay(memToRemove.date); // riapri overlay aggiornato
 }
 
+// --- NAVIGAZIONE MEMORIE ---
 function prevMemory() {
-    const dateStr = document.getElementById('add-memory-container').dataset.date;
-    const dayMemories = memories[dateStr];
-    if (!dayMemories || dayMemories.length <= 1) return;
-
+    if (dayMemories.length <= 1) return;
     currentMemoryIndex = (currentMemoryIndex - 1 + dayMemories.length) % dayMemories.length;
-    showMemoryInOverlay(dateStr, currentMemoryIndex);
+    showMemoryInOverlay(currentMemoryIndex);
 }
-
 function nextMemory() {
-    const dateStr = document.getElementById('add-memory-container').dataset.date;
-    const dayMemories = memories[dateStr];
-    if (!dayMemories || dayMemories.length <= 1) return;
-
+    if (dayMemories.length <= 1) return;
     currentMemoryIndex = (currentMemoryIndex + 1) % dayMemories.length;
-    showMemoryInOverlay(dateStr, currentMemoryIndex);
+    showMemoryInOverlay(currentMemoryIndex);
 }
 
+function closeOverlay() { document.getElementById('timeline-overlay').style.display = 'none'; }
 function previewImage(event, imgId, audioId, wrapperId, inputId) {
     const file = event.target.files[0];
     const img = document.getElementById(imgId);

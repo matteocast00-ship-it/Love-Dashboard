@@ -336,6 +336,15 @@
             snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
             return result;
         };
+        window.deleteMemory = async function (memoryId) {
+            try {
+                const docRef = doc(db, `${BASE_PATH}/${COUPLE_DOC}/memories`, memoryId);
+                await deleteDoc(docRef);
+                console.log("Memoria rimossa con ID:", memoryId);
+            } catch (err) {
+                console.error("Errore nel rimuovere la memoria:", err);
+            }
+        };
 
         // Sentimenti
         window.saveMood = async function (moodEntry) {
