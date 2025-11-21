@@ -321,14 +321,25 @@
         const db = getFirestore(app);
         const messaging = getMessaging(app);
 
-        // Recupera o crea un deviceId persistente
+        // Genera o recupera un deviceId persistente
         let deviceId = localStorage.getItem("deviceId");
         if (!deviceId) {
             deviceId = crypto.randomUUID();
             localStorage.setItem("deviceId", deviceId);
         }
 
-        // Richiede permessi notifiche e salva token
+        // ---- REGISTRAZIONE SERVICE WORKER ----
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/Love-Dashboard/firebase-messaging-sw.js')
+                .then((registration) => {
+                    console.log('Service Worker registrato:', registration);
+                })
+                .catch((err) => {
+                    console.error('Errore registrazione Service Worker:', err);
+                });
+        }
+
+        // ---- FUNZIONE PER REGISTRARE IL DEVICE ----
         export async function registerDeviceForNotifications() {
             try {
                 const permission = await Notification.requestPermission();
@@ -356,27 +367,33 @@
             }
         }
 
-        // Gestione notifiche in foreground
+        // ---- GESTIONE NOTIFICHE FOREGROUND ----
         onMessage(messaging, (payload) => {
             new Notification(payload.notification.title, {
                 body: payload.notification.body
             });
         });
 
-        // Funzione helper per aggiornare token (es. se cambia)
+        // ---- FUNZIONE PER AGGIORNARE IL TOKEN ----
         export async function refreshToken() {
-            const token = await getToken(messaging, {
-                vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
-            });
-            localStorage.setItem("deviceToken", token);
-            await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
-                token,
-                updatedAt: new Date().toISOString()
-            }, { merge: true });
-            console.log("Token aggiornato in Firestore");
+            try {
+                const token = await getToken(messaging, {
+                    vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
+                });
+                localStorage.setItem("deviceToken", token);
+
+                await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
+                    token,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                console.log("Token aggiornato in Firestore");
+            } catch (err) {
+                console.error("Errore aggiornamento token:", err);
+            }
         }
 
-        // Per comodità, chiamabile da window
+        // Esponi le funzioni globalmente
         window.registerDeviceForNotifications = registerDeviceForNotifications;
         window.refreshToken = refreshToken;
     </script>
