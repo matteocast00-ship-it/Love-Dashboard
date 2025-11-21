@@ -335,7 +335,6 @@
             navigator.serviceWorker.register('/Love-Dashboard/firebase-messaging-sw.js', { scope: '/Love-Dashboard/' })
                 .then(registration => {
                     console.log('Service Worker registrato:', registration);
-                    messaging.useServiceWorker(registration); // opzionale per compatibilità
                 })
                 .catch(err => console.error('Errore registrazione Service Worker:', err));
         }
