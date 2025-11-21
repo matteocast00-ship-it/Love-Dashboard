@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Love Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- FLIP CLOCK GLOBALE -->
+    <div id="global-clock">
+        <div id="flip-clock" class="flip-clock"></div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login">
+        <div class="login-card">
+            <h1>Love Dashboard</h1>
+            <button onclick="resetAllData()">RESET TUTTO</button>
+            <!-- Registrazione -->
+            <div id="register-section">
+                <input type="password" id="reg-password" placeholder="Crea una nuova password">
+                <button onclick="register()">Registrati</button>
+            </div>
+
+            <!-- Login -->
+            <div id="login-section" style="display:none;">
+                <input type="password" id="password" placeholder="Inserisci la password">
+                <button onclick="login()">Accedi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTRO + HUB -->
+    <div id="intro" style="display:none;">
+        <div class="intro-card">
+            <h2 class="intro-title">Benvenuti nella Love Dashboard ❤️</h2>
+            <button id="logout-btn" class="fancy-btn" onclick="logout()">Logout</button>
+            <p class="intro-text">Conserva i vostri ricordi, sentimenti e messaggi d'amore ogni giorno.</p>
+            <div class="icons-grid">
+                <div class="icon-card" onclick="showSection('relationship-section')">⏳<p>Tempo insieme</p>
+                </div>
+                <div class="icon-card" onclick="showSection('timeline-section')">📅<p>Linea del tempo</p>
+                </div>
+                <div class="icon-card" onclick="showSection('daily-message-section')">💌<p>Messaggio del giorno</p>
+                </div>
+                <div class="icon-card" onclick="showSection('memory-section')">🖼️<p>Ricordi casuali</p>
+                </div>
+                <div class="icon-card" onclick="showSection('mood-section')">🌈<p>Sentimenti</p>
+                </div>
+                <div class="icon-card" onclick="showSection('oracle-section')">🔮<p>Oracolo</p>
+                </div>
+                <div class="icon-card" onclick="showSection('photobooth-section')">📸<p>Photobooth</p>
+                </div>
+                <div class="icon-card" onclick="showSection('special-section')">💌<p>Messaggi speciali</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEZIONI CARD CENTRALI -->
+
+    <!-- TEMPO INSIEME -->
+    <div id="relationship-section" class="section" style="display:none;">
+        <div class="central-card">
+            <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+            <h3>Tempo insieme</h3>
+
+            <!-- FLIP CLOCK -->
+            <div id="section-flip-clock" class="flip-clock"></div>
+
+            <!-- CALENDARIO PER SCEGLIERE LA DATA -->
+            <div class="relationship-calendar">
+                <div class="calendar-nav">
+                    <button onclick="prevRelMonth()">‹</button>
+                    <span id="rel-month-label"></span>
+                    <button onclick="nextRelMonth()">›</button>
+                </div>
+                <div id="rel-calendar-grid"></div>
+                <p id="relationship-start-text" class="start-text"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- LINEA DEL TEMPO -->
+    <div id="timeline-section" class="section" style="display:none;">
+        <div class="central-card">
+            <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+            <h3>Linea del tempo</h3>
+            <div class="calendar-nav">
+                <button onclick="prevMonth()">‹</button>
+                <span id="month-label"></span>
+                <button onclick="nextMonth()">›</button>
+            </div>
+            <div id="calendar-grid"></div>
+
+            <div id="timeline-overlay" class="overlay">
+                <div class="overlay-content">
+                    <span class="close" onclick="closeOverlay()">&times;</span>
+                    <img id="overlay-img" src="" alt="">
+                    <p id="overlay-text"></p>
+                    <audio id="overlay-audio" controls></audio>
+                    <div id="add-memory-container" style="display:none;">
+                        <div id="memory-navigation" class="memory-nav">
+                            <button id="prev-memory-btn" class="fancy-btn" onclick="prevMemory()">‹</button>
+                            <button id="next-memory-btn" class="fancy-btn" onclick="nextMemory()">›</button>
+                        </div>
+
+                        <div class="memory-form">
+                            <label class="file-label fancy-btn">
+                                📷 Aggiungi immagine
+                                <input type="file" id="new-img-input" accept="image/*" style="display:none;"
+                                    onchange="previewImage(event,'image-preview',null,'preview-wrapper','new-img-input')">
+                            </label>
+
+                            <!-- 👇 ANTEPRIMA IMMAGINE -->
+                            <div id="preview-wrapper">
+                                <img id="image-preview" style="display:none;" />
+                            </div>
+
+                            <input type="text" id="new-text-input" placeholder="Descrizione del ricordo"
+                                class="memory-input">
+
+                            <button class="fancy-btn save-btn" onclick="addMemoryFromCalendar()">💾 Salva</button>
+                            <button id="remove-memory-btn" class="remove-btn" onclick="removeMemory()">🗑️ Rimuovi
+                                ricordo</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MESSAGGIO DEL GIORNO -->
+    <div id="daily-message-section" class="section" style="display:none;">
+        <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+        <h3>Messaggio del giorno</h3>
+        <div id="daily-message-card" class="daily-message-card">
+            <p id="daily-message-text"></p>
+            <div id="hearts-container"></div>
+        </div>
+    </div>
+
+    <!-- RICORDI CASUALI -->
+    <div id="memory-section" class="section" style="display:none;">
+        <div class="central-card">
+            <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+            <h3>Ricordati di noi ❤️</h3>
+            <button class="fancy-btn" onclick="showRandomMemory()">Mostra un ricordo</button>
+            <div class="memory-card">
+                <p id="memory-text"></p>
+                <img id="memory-img" src="" alt="">
+            </div>
+            <div class="memory-upload">
+                <h4>Aggiungi un nuovo ricordo</h4>
+
+                <div class="memory-upload-container">
+                    <!-- CALENDARIO -->
+                    <div class="memory-calendar-wrapper">
+                        <div class="calendar-nav">
+                            <button onclick="prevMemMonth()">‹</button>
+                            <span id="mem-month-label"></span>
+                            <button onclick="nextMemMonth()">›</button>
+                        </div>
+                        <div id="mem-calendar-grid"></div>
+                    </div>
+
+                    <!-- PREVIEW -->
+                    <div id="memory-preview" class="memory-preview" style="display:none;">
+                        <!-- X per rimuovere immagine -->
+
+                        <img id="memory-preview-img" style="display:none;" />
+
+                        <!-- X per rimuovere audio -->
+
+                        <audio id="memory-preview-audio" controls style="display:none;"></audio>
+                    </div>
+                </div>
+
+                <!-- INPUT FILES E TESTO -->
+                <button class="file-btn" onclick="document.getElementById('memory-img-input').click()">Aggiungi
+                    immagine</button>
+                <input type="file" id="memory-img-input" accept="image/*" style="display:none;"
+                    onchange="previewMemoryFile(event, 'image')">
+
+                <button class="file-btn" onclick="document.getElementById('memory-audio-input').click()">Aggiungi
+                    audio</button>
+                <input type="file" id="memory-audio-input" accept="audio/*" style="display:none;"
+                    onchange="previewMemoryFile(event, 'audio')">
+
+                <input type="text" id="memory-text-input" class="memory-input" placeholder="Descrizione del ricordo">
+                <button class="fancy-btn" onclick="saveMemoryWithDate()">Salva ricordo</button>
+            </div>
+        </div>
+    </div>
+    <!-- SPECCHIO DEI SENTIMENTI -->
+    <div id="mood-section" class="section" style="display:none;">
+        <div class="central-card dream-card">
+            <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+            <h3>Specchio delle Emozioni 💖</h3>
+
+            <!-- Emozioni -->
+            <div class="emotion-grid">
+                <div class="emotion-card" data-mood="love" data-color="#ff4d6d">❤️ Amore</div>
+                <div class="emotion-card" data-mood="peace" data-color="#ffe066">💛 Serenità</div>
+                <div class="emotion-card" data-mood="nostalgia" data-color="#74c0fc">💙 Nostalgia</div>
+                <div class="emotion-card" data-mood="passion" data-color="#d0b3ff">💜 Passione</div>
+                <div class="emotion-card" data-mood="sad" data-color="#adb5bd">💔 Tristezza</div>
+            </div>
+
+            <!-- Diario -->
+            <textarea id="mood-note" placeholder="Scrivi come ti senti..."></textarea>
+
+            <button class="fancy-btn mood-save-btn" onclick="saveMood()">Salva Emozione</button>
+            <button class="notify-btn fancy-btn" onclick="sendMoodNotification()">Invia al tuo amore 💌</button>
+
+            <!-- Diario -->
+            <h4 class="history-title">Il nostro diario emozionale</h4>
+            <div id="mood-history"></div>
+            <button class="danger-btn" onclick="clearAllMoods()">Cancella tutto ❌</button>
+        </div>
+    </div>
+
+    <!-- BUBBLE WIDGET (Sempre visibile dopo il login) -->
+    <div id="mood-widget" class="mood-widget" style="display:none;" onclick="showSection('mood-section')">
+        <span id="mood-widget-emoji">💖</span>
+        <span id="mood-widget-text">Come ti senti oggi?</span>
+    </div>
+
+    <!-- NOTIFICA ANIMATA -->
+    <div id="mood-notification" class="mood-notification">💖 Emozione inviata con il cuore 💖</div>
+
+    <!-- ORACOLO -->
+    <div id="oracle-section" class="section" style="display:none;">
+        <div class="central-card dream-card">
+            <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+            <h3>Oracolo Magico 🔮</h3>
+
+            <!-- Selezione tema -->
+            <div class="oracle-themes">
+                <button class="oracle-theme-btn" data-theme="love" data-color="#ff4d6d">💖 Amore</button>
+                <button class="oracle-theme-btn" data-theme="peace" data-color="#ffe066">🌿 Serenità</button>
+                <button class="oracle-theme-btn" data-theme="motivation" data-color="#74c0fc">💪 Motivazione</button>
+                <button class="oracle-theme-btn" data-theme="fun" data-color="#d0b3ff">😆 Divertimento</button>
+            </div>
+
+            <!-- Pulsante richiesta -->
+            <button class="fancy-btn" id="ask-oracle-btn">Chiedi all'oracolo 🔮</button>
+
+            <!-- Sfera magica / animazione -->
+            <div id="oracle-animation" class="oracle-animation" style="display:none;">
+                <div class="oracle-glow"></div>
+            </div>
+
+            <!-- Risposta -->
+            <p id="oracle-text" class="oracle-text"></p>
+
+            <!-- Storico -->
+            <h4 class="history-title">Storico Oracolo 🌟</h4>
+            <div id="oracle-history" class="oracle-history"></div>
+            <button class="danger-btn" onclick="clearOracleHistory()">Cancella tutto</button>
+        </div>
+    </div>
+
+
+    <!-- PHOTOBOOTH -->
+
+    <div id="photobooth-section" class="section" style="display:none;">
+        <div class="central-card photobooth-card">
+            <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+            <h3>Photobooth 📸</h3>
+
+            <div id="camera-container">
+                <video id="camera" autoplay playsinline></video>
+                <canvas id="snapshot-canvas" style="display:none;"></canvas>
+            </div>
+
+            <div id="countdown" class="countdown-text"></div>
+            <button id="start-photobooth-btn" class="fancy-btn">Inizia Photobooth</button>
+
+            <h4>Anteprima scatti</h4>
+            <div id="preview-container" class="preview-container"></div>
+
+            <button id="download-btn" class="fancy-btn" style="display:none;">Scarica foto finale</button>
+        </div>
+    </div>
+
+    <!-- MESSAGGI SPECIALI -->
+    <div id="special-section" class="section" style="display:none;">
+        <div class="central-card">
+            <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
+            <h3>Messaggi speciali</h3>
+            <div class="special-messages"></div>
+            <input type="text" id="special-input" placeholder="Scrivi un messaggio speciale">
+            <button class="fancy-btn" onclick="addSpecialMessage()">Aggiungi</button>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAsIH1r4iUWLgMG-FrObYbmMGjVZRaem4g",
+            authDomain: "lovedashboard.firebaseapp.com",
+            projectId: "lovedashboard",
+            storageBucket: "lovedashboard.firebasestorage.app",
+            messagingSenderId: "118792260540",
+            appId: "1:118792260540:web:ba570888511d9f49c239b9"
+        };
+
+        // Inizializza Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const messaging = getMessaging(app);
+
+        // Recupera o crea un deviceId persistente
+        let deviceId = localStorage.getItem("deviceId");
+        if (!deviceId) {
+            deviceId = crypto.randomUUID();
+            localStorage.setItem("deviceId", deviceId);
+        }
+
+        // Richiede permessi notifiche e salva token
+        export async function registerDeviceForNotifications() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== "granted") {
+                    console.warn("Permesso notifiche negato");
+                    return;
+                }
+
+                const token = await getToken(messaging, {
+                    vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
+                });
+
+                console.log("Token dispositivo:", token);
+                localStorage.setItem("deviceToken", token);
+
+                // Salva token in Firestore
+                await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
+                    token,
+                    createdAt: new Date().toISOString()
+                });
+
+                console.log("Token salvato in Firestore!");
+            } catch (err) {
+                console.error("Errore durante la registrazione notifiche:", err);
+            }
+        }
+
+        // Gestione notifiche in foreground
+        onMessage(messaging, (payload) => {
+            new Notification(payload.notification.title, {
+                body: payload.notification.body
+            });
+        });
+
+        // Funzione helper per aggiornare token (es. se cambia)
+        export async function refreshToken() {
+            const token = await getToken(messaging, {
+                vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
+            });
+            localStorage.setItem("deviceToken", token);
+            await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
+                token,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            console.log("Token aggiornato in Firestore");
+        }
+
+        // Per comodità, chiamabile da window
+        window.registerDeviceForNotifications = registerDeviceForNotifications;
+        window.refreshToken = refreshToken;
+    </script>
+</body>
+
+
+
+</html>
