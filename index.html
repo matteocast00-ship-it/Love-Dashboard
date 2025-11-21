@@ -303,10 +303,12 @@
     <script src="main.js"></script>
 
     <script type="module">
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+        // Config Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAsIH1r4iUWLgMG-FrObYbmMGjVZRaem4g",
             authDomain: "lovedashboard.firebaseapp.com",
@@ -321,25 +323,24 @@
         const db = getFirestore(app);
         const messaging = getMessaging(app);
 
-        // Genera o recupera un deviceId persistente
+        // Recupera o crea un deviceId persistente
         let deviceId = localStorage.getItem("deviceId");
         if (!deviceId) {
             deviceId = crypto.randomUUID();
             localStorage.setItem("deviceId", deviceId);
         }
 
-        // ---- REGISTRAZIONE SERVICE WORKER ----
+        // Registrazione Service Worker su GitHub Pages
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/Love-Dashboard/firebase-messaging-sw.js')
-                .then((registration) => {
+            navigator.serviceWorker.register('/Love-Dashboard/firebase-messaging-sw.js', { scope: '/Love-Dashboard/' })
+                .then(registration => {
                     console.log('Service Worker registrato:', registration);
+                    messaging.useServiceWorker(registration); // opzionale per compatibilità
                 })
-                .catch((err) => {
-                    console.error('Errore registrazione Service Worker:', err);
-                });
+                .catch(err => console.error('Errore registrazione Service Worker:', err));
         }
 
-        // ---- FUNZIONE PER REGISTRARE IL DEVICE ----
+        // Richiede permessi notifiche e salva token
         export async function registerDeviceForNotifications() {
             try {
                 const permission = await Notification.requestPermission();
@@ -367,33 +368,28 @@
             }
         }
 
-        // ---- GESTIONE NOTIFICHE FOREGROUND ----
+        // Aggiorna token (es. se cambia)
+        export async function refreshToken() {
+            const token = await getToken(messaging, {
+                vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
+            });
+            localStorage.setItem("deviceToken", token);
+            await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
+                token,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            console.log("Token aggiornato in Firestore");
+        }
+
+        // Notifiche foreground
         onMessage(messaging, (payload) => {
             new Notification(payload.notification.title, {
-                body: payload.notification.body
+                body: payload.notification.body,
+                icon: payload.notification.icon || "/Love-Dashboard/icons/icon-192.png"
             });
         });
 
-        // ---- FUNZIONE PER AGGIORNARE IL TOKEN ----
-        export async function refreshToken() {
-            try {
-                const token = await getToken(messaging, {
-                    vapidKey: "BOfbB2aOa1mAF9xJRbECVGPITbNNXecfRtFGYejMT7xKSSlZXCJY1j-NQazLwVvdZcKyJwNf0PsRLbPhMn2yHpU"
-                });
-                localStorage.setItem("deviceToken", token);
-
-                await setDoc(doc(db, "pair/fixedCouple/tokens", deviceId), {
-                    token,
-                    updatedAt: new Date().toISOString()
-                }, { merge: true });
-
-                console.log("Token aggiornato in Firestore");
-            } catch (err) {
-                console.error("Errore aggiornamento token:", err);
-            }
-        }
-
-        // Esponi le funzioni globalmente
+        // Rendiamo le funzioni globali
         window.registerDeviceForNotifications = registerDeviceForNotifications;
         window.refreshToken = refreshToken;
     </script>
