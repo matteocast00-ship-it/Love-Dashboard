@@ -170,6 +170,7 @@ function logout() {
     document.getElementById("intro").style.display = "none";
     document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
     document.getElementById('flip-clock').style.display = 'none';
+    document.getElementById("mood-widget").style.display = 'none';
 
     // Mostra blocchi login/registrazione
     document.getElementById("login").style.display = "block";
