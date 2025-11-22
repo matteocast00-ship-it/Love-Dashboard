@@ -156,6 +156,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+    loadLastMood();
+});
+
 
 function enterHome() {
     document.getElementById('intro').style.display = 'block';
@@ -1064,6 +1068,17 @@ async function loadMoodsFromFirestore() {
     if (moods.length > 0) {
         updateWidget(moods[0]);
     }
+}
+
+async function loadLastMood() {
+    const moods = await window.getMoods(); // tutti i sentimenti
+    if (!moods.length) return;
+
+    // Ordina per data crescente o timestamp se lo salvi
+    moods.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const lastMood = moods[0]; // l'ultimo inserito
+
+    updateWidget(lastMood);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
