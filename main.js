@@ -986,7 +986,8 @@ async function saveMood() {
     const entry = {
         emoji: selectedMood.emoji,
         note,
-        date: new Date().toLocaleString(),
+        date: new Date().toLocaleString(), // opzionale per visualizzazione
+        timestamp: Date.now(),              // numero per ordinamento affidabile
         color: selectedMood.color
     };
 
@@ -1059,7 +1060,7 @@ async function loadMoodsFromFirestore() {
     const moods = await window.getMoods();
 
     // ordina per data (quelli nuovi in alto)
-    moods.sort((a, b) => new Date(b.date) - new Date(a.date));
+    moods.sort((a, b) => b.timestamp - a.timestamp);
 
     moodHistory = moods;
     updateMoodHistory();
@@ -1075,7 +1076,7 @@ async function loadLastMood() {
     if (!moods.length) return;
 
     // Ordina per data crescente o timestamp se lo salvi
-    moods.sort((a, b) => new Date(b.date) - new Date(a.date));
+    moods.sort((a, b) => b.timestamp - a.timestamp);
     const lastMood = moods[0]; // l'ultimo inserito
 
     updateWidget(lastMood);
@@ -1634,9 +1635,9 @@ function createFinalImage() {
 
                 // Adattamento responsive
                 const screenWidth = window.innerWidth;
-                if(screenWidth < 480) {
+                if (screenWidth < 480) {
                     finalImg.style.width = "200px"; // più piccolo su smartphone
-                } else if(screenWidth < 768) {
+                } else if (screenWidth < 768) {
                     finalImg.style.width = "250px"; // tablet
                 } else {
                     finalImg.style.width = "300px"; // desktop
