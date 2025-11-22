@@ -1,0 +1,21 @@
+{
+  "name": "Love Dashboard",
+  "short_name": "LoveDash",
+  "description": "App per sentimenti, foto e messaggi speciali",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff4081",
+  "icons": [
+    {
+      "src": "assets/icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpg"
+    },
+    {
+      "src": "assets/icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpg"
+    }
+  ]
+}
