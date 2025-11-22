@@ -266,9 +266,7 @@
         </div>
     </div>
 
-
     <!-- PHOTOBOOTH -->
-
     <div id="photobooth-section" class="section" style="display:none;">
         <div class="central-card photobooth-card">
             <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
@@ -294,13 +292,22 @@
         <div class="central-card">
             <button class="back-btn" onclick="goHome()">🏠 Torna all'home</button>
             <h3>Messaggi speciali</h3>
+
+            <!-- Lista messaggi -->
             <div class="special-messages"></div>
-            <input type="text" id="special-input" placeholder="Scrivi un messaggio speciale">
+
+            <!-- Input messaggio -->
+            <input type="text" id="special-input" class="memory-input" placeholder="Scrivi un messaggio speciale">
             <button class="fancy-btn" onclick="addSpecialMessage()">Aggiungi</button>
+            <button onclick="clearAllSpecialMessages()" class="danger-btn">
+                Cancella tutti i messaggi
+            </button>
         </div>
     </div>
 
-    <script src="main.js"></script>
+    <!-- Spline Viewer Script -->
+    <script type="module" src="https://unpkg.com/@splinetool/viewer@1.12.0/build/spline-viewer.js"></script>
+
 
     <script type="module">
 
@@ -347,10 +354,7 @@
             }
         };
         // Sentimenti
-        window.saveMood = async function (moodEntry) {
-            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/moods`);
-            return addDoc(colRef, moodEntry);
-        };
+
         window.getMoods = async function () {
             const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/moods`);
             const snapshot = await getDocs(colRef);
@@ -358,20 +362,60 @@
             snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
             return result;
         };
-
-        // Messaggi speciali
-        window.saveSpecialMessage = async function (messageEntry) {
-            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/specialMessages`);
-            return addDoc(colRef, messageEntry);
+        window.deleteMood = async function (moodId) {
+            const ref = doc(db, `${BASE_PATH}/${COUPLE_DOC}/moods`, moodId);
+            await deleteDoc(ref);
         };
+        window.saveMoodToDB = async function (entry) {
+            try {
+                const moodRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/moods`);
+                await addDoc(moodRef, entry);
+                console.log("Mood salvato nel database:", entry);
+            } catch (error) {
+                console.error("Errore salvataggio mood:", error);
+                alert("Errore nel salvare il sentimento.");
+            }
+        };
+        // Messaggi speciali
+        window.saveSpecialMessage = async function (entry) {
+            try {
+                const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/specialMessages`);
+                await addDoc(colRef, entry);
+                console.log("Special message salvato:", entry);
+            } catch (err) {
+                console.error("Errore nel salvare special message:", err);
+            }
+        };
+
+        // Ottiene tutti i messaggi speciali
         window.getSpecialMessages = async function () {
-            const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/specialMessages`);
-            const snapshot = await getDocs(colRef);
-            const result = [];
-            snapshot.forEach(doc => result.push({ id: doc.id, ...doc.data() }));
-            return result;
+            try {
+                const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/specialMessages`);
+                const snapshot = await getDocs(colRef);
+                return snapshot.docs.map(d => d.data());
+            } catch (err) {
+                console.error("Errore nel caricare special messages:", err);
+                return [];
+            }
+        };
+
+        // Cancella tutti i messaggi speciali
+        window.deleteAllSpecialMessages = async function () {
+            try {
+                const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/specialMessages`);
+                const snapshot = await getDocs(colRef);
+
+                const deletions = snapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+                await Promise.all(deletions);
+
+                console.log("Tutti i messaggi speciali eliminati.");
+            } catch (err) {
+                console.error("Errore nella cancellazione totale:", err);
+            }
         };
     </script>
+
+    <script src="main.js"></script>
 </body>
 
 

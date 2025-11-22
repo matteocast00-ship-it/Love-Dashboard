@@ -148,6 +148,14 @@ function logout() {
 
 document.addEventListener("DOMContentLoaded", checkAuthOnLoad);
 
+document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof window.getSpecialMessages === 'function') {
+        await loadSpecialMessages();
+    } else {
+        console.error("window.getSpecialMessages non è ancora definita");
+    }
+});
+
 
 function enterHome() {
     document.getElementById('intro').style.display = 'block';
@@ -173,7 +181,7 @@ function enterHome() {
     renderOracleHistory();
 
     // MOSTRA IL WIDGET DEI SENTIMENTI
-    loadLastMoodWidget();
+    loadMoodsFromFirestore();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -195,7 +203,7 @@ function showSection(id) {
     if (id === 'relationship-section') renderRelCalendar();
     if (id === 'random-memories-section' || id === 'memory-section') renderMemoryCalendar();
     if (id === 'photobooth-section') initPhotobooth();
-    loadLastMoodWidget();
+    loadMoodsFromFirestore();
 }
 
 // ---------- FLIP CLOCK ----------
@@ -944,7 +952,7 @@ function resetMemorySection() {
 
 // ---------- SPECCHIO DEI SENTIMENTI ----------
 let selectedMood = null;
-let moodHistory = JSON.parse(localStorage.getItem("moodHistory")) || [];
+let moodHistory = [];
 
 /* Selezione emozione */
 document.addEventListener("click", e => {
@@ -966,7 +974,7 @@ document.addEventListener("click", e => {
 });
 
 /* Salvataggio */
-function saveMood() {
+async function saveMood() {
     const note = document.getElementById("mood-note").value.trim();
     if (!selectedMood) return alert("Seleziona un'emozione!");
     if (!note) return alert("Scrivi una nota!");
@@ -978,28 +986,34 @@ function saveMood() {
         color: selectedMood.color
     };
 
-    moodHistory.unshift(entry);
-    localStorage.setItem("moodHistory", JSON.stringify(moodHistory));
-    localStorage.setItem("lastMood", JSON.stringify(entry)); // Salva ultimo mood
+    // SALVA SU FIRESTORE
+    await window.saveMoodToDB(entry);
 
+    // aggiorna lista locale
+    moodHistory.unshift(entry);
+
+    // aggiorna UI
     updateMoodHistory();
     updateWidget(entry);
 
     document.getElementById("mood-note").value = "";
+    sendMoodNotification();
 }
 
-function clearAllMoods() {
+async function clearAllMoods() {
     if (!confirm("Sei sicuro di voler cancellare tutti i sentimenti?")) return;
 
-    // Svuota lo storico e localStorage
-    moodHistory = [];
-    localStorage.removeItem("moodHistory");
-    localStorage.removeItem("lastMood"); // rimuove anche il salvataggio del widget
+    // prendi tutti i mood
+    const moods = await window.getMoods();
 
-    // Aggiorna storico
+    // rimuovili uno a uno
+    for (const m of moods) {
+        await window.deleteMood(m.id); // NON ESISTE ANCORA → lo aggiungo dopo
+    }
+
+    moodHistory = [];
     updateMoodHistory();
 
-    // Nascondi widget
     const widget = document.getElementById("mood-widget");
     widget.style.display = "none";
 }
@@ -1015,52 +1029,10 @@ function updateMoodHistory() {
         `)
         .join("");
 }
-updateMoodHistory();
 
 /* Widget update */
 function updateWidget(entry) {
     const widget = document.getElementById("mood-widget");
-    const emojiSpan = document.getElementById("mood-widget-emoji");
-    const textSpan = document.getElementById("mood-widget-text");
-
-    emojiSpan.innerText = entry.emoji;
-    textSpan.innerText = entry.note;
-
-    // Manteniamo il colore dell'emozione
-    widget.style.background = `${selectedMood.color}dd`;
-    widget.style.backdropFilter = "blur(6px)";
-    widget.style.border = `1px solid ${selectedMood.color}70`;
-    widget.style.boxShadow = `0 0 15px ${selectedMood.color}90`;
-
-    // Mostra widget
-    widget.style.display = "flex";
-
-    // Salva nello storage per persistenza
-    localStorage.setItem("lastMood", JSON.stringify(entry));
-
-    // Animazione pop
-    widget.classList.remove("widget-pulse");
-    void widget.offsetWidth; // reset trick
-    widget.classList.add("widget-pulse");
-}
-
-function loadLastMoodWidget() {
-    const widget = document.getElementById("mood-widget");
-    if (!widget) return;
-
-    const lastMood = localStorage.getItem("lastMood");
-
-    if (!lastMood) {
-        widget.style.display = "flex"; // Mostriamo anche senza entry
-        document.getElementById("mood-widget-emoji").innerText = "💖";
-        document.getElementById("mood-widget-text").innerText = "Come ti senti oggi?";
-        widget.style.background = "#ffffff44"; // colore neutro
-        widget.style.border = "1px solid #ffffff50";
-        widget.style.boxShadow = "0 0 10px #00000033";
-        return;
-    }
-
-    const entry = JSON.parse(lastMood);
     const emojiSpan = document.getElementById("mood-widget-emoji");
     const textSpan = document.getElementById("mood-widget-text");
 
@@ -1072,14 +1044,30 @@ function loadLastMoodWidget() {
     widget.style.border = `1px solid ${entry.color}70`;
     widget.style.boxShadow = `0 0 15px ${entry.color}90`;
 
-    widget.style.display = "flex"; // Importantissimo: sempre visibile
+    widget.style.display = "flex";
+
     widget.classList.remove("widget-pulse");
     void widget.offsetWidth;
     widget.classList.add("widget-pulse");
 }
 
+async function loadMoodsFromFirestore() {
+    const moods = await window.getMoods();
+
+    // ordina per data (quelli nuovi in alto)
+    moods.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    moodHistory = moods;
+    updateMoodHistory();
+
+    // widget (mostra ultimo mood salvato)
+    if (moods.length > 0) {
+        updateWidget(moods[0]);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    loadLastMoodWidget();
+    loadMoodsFromFirestore();
 });
 
 /* Animazione notifica opzione B */
@@ -1613,7 +1601,7 @@ function createFinalImage() {
     canvas.height = height;
     const ctx = canvas.getContext("2d");
 
-    // Sfondo bianco per tutto il canvas (bordo esterno)
+    // Sfondo bianco per tutto il canvas
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1621,7 +1609,6 @@ function createFinalImage() {
         const img = new Image();
         img.src = shot;
         img.onload = () => {
-            // Calcola y in base all'indice e al bordo
             const y = border + i * (video.videoHeight + border);
             ctx.drawImage(img, 0, y, width, video.videoHeight);
 
@@ -1629,9 +1616,20 @@ function createFinalImage() {
                 // Mostra risultato finale
                 const finalImg = new Image();
                 finalImg.src = canvas.toDataURL("image/png");
-                finalImg.style.width = "300px";
+
+                // Adattamento responsive
+                const screenWidth = window.innerWidth;
+                if(screenWidth < 480) {
+                    finalImg.style.width = "200px"; // più piccolo su smartphone
+                } else if(screenWidth < 768) {
+                    finalImg.style.width = "250px"; // tablet
+                } else {
+                    finalImg.style.width = "300px"; // desktop
+                }
+
                 finalImg.style.display = "block";
-                finalImg.style.margin = "0 auto"; // centratura
+                finalImg.style.margin = "0 auto";
+
                 previewContainer.innerHTML = "";
                 previewContainer.appendChild(finalImg);
                 downloadBtn.style.display = "inline-block";
@@ -1686,21 +1684,45 @@ function resetPhotobooth() {
     shotIndex = 0;
 }
 // ---------- MESSAGGI SPECIALI ----------
-let specials = JSON.parse(localStorage.getItem('specials')) || [];
-function addSpecialMessage() {
+let specials = [];
+
+async function loadSpecialMessages() {
+    specials = await window.getSpecialMessages();
+    renderSpecials();
+}
+
+async function addSpecialMessage() {
     const val = document.getElementById('special-input').value.trim();
     if (!val) return;
-    specials.push(val);
-    localStorage.setItem('specials', JSON.stringify(specials));
+
+    const entry = { text: val, date: new Date().toLocaleString() };
+
+    await window.saveSpecialMessage(entry);
+    specials.push(entry);
+
     document.getElementById('special-input').value = '';
     renderSpecials();
 }
+
 function renderSpecials() {
     const container = document.querySelector('.special-messages');
     container.innerHTML = '';
-    specials.forEach(msg => { const p = document.createElement('p'); p.innerText = msg; container.appendChild(p); });
+    specials.forEach(msg => {
+        const p = document.createElement('p');
+        p.innerHTML = `<strong>📌 ${msg.date}</strong><br>${msg.text}`;
+        container.appendChild(p);
+    });
 }
-renderSpecials();
+
+async function clearAllSpecialMessages() {
+    if (!confirm("Vuoi davvero eliminare tutti i messaggi speciali?")) return;
+    await window.deleteAllSpecialMessages();
+    specials = [];
+    renderSpecials();
+}
+
+
+
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("mood-widget").style.display = "none";
 });
