@@ -1414,4 +1414,8 @@ body {
     input, textarea {
         font-size: 0.8rem;
     }
+
+    .memory-upload-container{
+        flex-direction: column;
+    }
 }

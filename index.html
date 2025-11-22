@@ -187,8 +187,8 @@
                 <input type="file" id="memory-img-input" accept="image/*" style="display:none;"
                     onchange="previewMemoryFile(event, 'image')">
 
-                <button class="file-btn" onclick="document.getElementById('memory-audio-input').click()">Aggiungi
-                    audio</button>
+                <!--<button class="file-btn" onclick="document.getElementById('memory-audio-input').click()">Aggiungi
+                    audio</button>-->
                 <input type="file" id="memory-audio-input" accept="audio/*" style="display:none;"
                     onchange="previewMemoryFile(event, 'audio')">
 
@@ -306,6 +306,7 @@
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { doc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAsIH1r4iUWLgMG-FrObYbmMGjVZRaem4g",
@@ -345,7 +346,6 @@
                 console.error("Errore nel rimuovere la memoria:", err);
             }
         };
-
         // Sentimenti
         window.saveMood = async function (moodEntry) {
             const colRef = collection(db, `${BASE_PATH}/${COUPLE_DOC}/moods`);

@@ -501,23 +501,23 @@ async function renderCalendar() {
     const grid = document.getElementById('calendar-grid');
     grid.innerHTML = '';
     const monthLabel = document.getElementById('month-label');
-    const monthNames = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno",
-                        "Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+    const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
     monthLabel.innerText = `${monthNames[currentMonth]} ${currentYear}`;
 
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     for (let i = 0; i < firstDay; i++) {
-        const empty = document.createElement('div'); 
-        empty.className = 'empty'; 
+        const empty = document.createElement('div');
+        empty.className = 'empty';
         grid.appendChild(empty);
     }
 
     for (let d = 1; d <= daysInMonth; d++) {
-        const dayDiv = document.createElement('div'); 
+        const dayDiv = document.createElement('div');
         dayDiv.className = 'calendar-day';
-        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const dayMems = memoriesByDate[dateStr] || [];
 
         if (dayMems.length > 0) {
@@ -529,8 +529,8 @@ async function renderCalendar() {
             dayDiv.style.backgroundColor = '#fff';
         }
 
-        const span = document.createElement('span'); 
-        span.innerText = d; 
+        const span = document.createElement('span');
+        span.innerText = d;
         span.className = 'day-number';
         dayDiv.appendChild(span);
 
@@ -597,7 +597,7 @@ function addMemoryFromCalendar() {
     if (!imgFile || !text) { alert("Inserisci immagine e testo!"); return; }
 
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = async function (e) {
         const memoryEntry = { text, img: e.target.result, audio: null, date: dateStr };
         await window.saveMemory(memoryEntry);
         await renderCalendar();
@@ -750,13 +750,26 @@ function saveMemoryWithDate() {
     const readerImg = new FileReader();
     readerImg.onload = e => {
         const imgData = e.target.result;
-
         if (audioFile) {
             const readerAudio = new FileReader();
-            readerAudio.onload = ev => saveMemory(text, imgData, ev.target.result, selectedMemoryDate);
+            readerAudio.onload = async ev => {
+                await window.saveMemory({
+                    text,
+                    img: imgData,
+                    audio: ev.target.result,
+                    date: selectedMemoryDate
+                });
+                showRandomMemory();
+            };
             readerAudio.readAsDataURL(audioFile);
+
         } else {
-            saveMemory(text, imgData, null, selectedMemoryDate);
+            window.saveMemory({
+                text,
+                img: imgData,
+                audio: null,
+                date: selectedMemoryDate
+            }).then(showRandomMemory);
         }
     };
     readerImg.readAsDataURL(imgFile);
@@ -774,52 +787,45 @@ function nextMemMonth() {
     renderMemoryCalendar();
 }
 
-function addMemory() {
-    if (!selectedMemoryDate) { alert("Seleziona una data!"); return; }
-    const text = document.getElementById("memory-text-input").value;
-    const imgFile = document.getElementById("memory-img-input").files[0];
-    const audioFile = document.getElementById("memory-audio-input").files[0];
-    if (!text || !imgFile) { alert("Inserisci almeno testo e immagine!"); return; }
 
-    const readerImg = new FileReader();
-    readerImg.onload = e => {
-        const imgData = e.target.result;
-        if (audioFile) {
-            const readerAudio = new FileReader();
-            readerAudio.onload = ev => saveMemory(text, imgData, ev.target.result, selectedMemoryDate);
-            readerAudio.readAsDataURL(audioFile);
-        } else saveMemory(text, imgData, null, selectedMemoryDate);
-    };
-    readerImg.readAsDataURL(imgFile);
-}
-
-function saveMemory(text, imgData, audioData, dateStr) {
-    if (!memories[dateStr]) memories[dateStr] = [];
-    memories[dateStr].push({ text, img: imgData, audio: audioData });
-    localStorage.setItem("memories", JSON.stringify(memories));
-    renderCalendar();
-    showRandomMemory(dateStr);
-}
-
-function showRandomMemory(dateStr = null) {
+async function showRandomMemory(dateStr = null) {
     const area = document.querySelector('.memory-card');
     if (!area) return;
-    const allMemories = Object.values(memories).flat();
-    if (allMemories.length === 0) {
+
+    const memories = await window.getMemories();
+    if (!memories || memories.length === 0) {
         area.querySelector('#memory-text').innerText = 'Nessun ricordo disponibile!';
         area.querySelector('#memory-img').src = '';
         area.querySelector('#memory-audio').style.display = 'none';
         return;
     }
-    let mem;
-    if (dateStr && memories[dateStr]) mem = memories[dateStr].slice(-1)[0];
-    else mem = allMemories[Math.floor(Math.random() * allMemories.length)];
+
+    const mem = memories[Math.floor(Math.random() * memories.length)];
 
     area.querySelector('#memory-text').innerText = mem.text;
     area.querySelector('#memory-img').src = mem.img;
-    const audio = area.querySelector('#memory-audio');
-    if (mem.audio) { audio.src = mem.audio; audio.style.display = 'block'; }
-    else { audio.style.display = 'none'; audio.src = ''; }
+
+    /*const audio = area.querySelector('#memory-audio');
+    if (mem.audio) {
+        audio.src = mem.audio;
+        audio.style.display = 'block';
+    } else {
+        audio.src = "";
+        audio.style.display = 'none';
+    }*/
+
+    // salva ID per eventuale rimozione
+    area.dataset.currentMemoryId = mem.id;
+}
+
+async function deleteCurrentRandomMemory() {
+    const area = document.querySelector('.memory-card');
+    const id = area.dataset.currentMemoryId;
+
+    if (!id) return;
+
+    await window.deleteMemory(id);
+    showRandomMemory();
 }
 
 function previewMemoryFile(event, type) {
@@ -903,17 +909,14 @@ let memCalendarOriginalStyle = {
 };
 
 function resetMemorySection() {
-    // Reset testo
     const textInput = document.getElementById("memory-text-input");
     if (textInput) textInput.value = "";
 
-    // Reset input file
     const imgInput = document.getElementById("memory-img-input");
     const audioInput = document.getElementById("memory-audio-input");
     if (imgInput) imgInput.value = "";
     if (audioInput) audioInput.value = "";
 
-    // Nascondi preview e rimuovi eventuali "X"
     const previewWrapper = document.getElementById("memory-preview");
     if (previewWrapper) {
         previewWrapper.style.display = "none";
@@ -934,15 +937,7 @@ function resetMemorySection() {
         removeBtns.forEach(btn => btn.remove());
     }
 
-    // Ripristina dimensioni calendario usando le dimensioni calcolate
-    if (memCalendarWrapper) {
-        memCalendarWrapper.style.width = "100%";
-    }
-
-    // Deseleziona eventuale data selezionata
     selectedMemoryDate = null;
-
-    // Ricarica calendario
     renderMemoryCalendar();
 }
 
@@ -1050,7 +1045,7 @@ function updateWidget(entry) {
 }
 
 function loadLastMoodWidget() {
-      const widget = document.getElementById("mood-widget");
+    const widget = document.getElementById("mood-widget");
     if (!widget) return;
 
     const lastMood = localStorage.getItem("lastMood");
