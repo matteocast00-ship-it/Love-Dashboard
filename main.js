@@ -156,9 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-    loadLastMood();
-});
+
 
 
 function enterHome() {
@@ -967,7 +965,7 @@ document.addEventListener("click", e => {
     );
 
     e.target.classList.add("active");
-    void e.target.offsetWidth; // reset trick
+    void e.target.offsetWidth;
     e.target.classList.add("pop-anim");
 
     selectedMood = {
@@ -977,7 +975,7 @@ document.addEventListener("click", e => {
     };
 });
 
-/* Salvataggio */
+/* Salvataggio mood */
 async function saveMood() {
     const note = document.getElementById("mood-note").value.trim();
     if (!selectedMood) return alert("Seleziona un'emozione!");
@@ -986,41 +984,20 @@ async function saveMood() {
     const entry = {
         emoji: selectedMood.emoji,
         note,
-        date: new Date().toLocaleString(), // opzionale per visualizzazione
-        timestamp: Date.now(),              // numero per ordinamento affidabile
-        color: selectedMood.color
+        color: selectedMood.color,
+        timestamp: Date.now(),
+        date: new Date().toLocaleString()
     };
 
-    // SALVA SU FIRESTORE
     await window.saveMoodToDB(entry);
 
-    // aggiorna lista locale
+    // aggiorna lista locale e widget
     moodHistory.unshift(entry);
-
-    // aggiorna UI
     updateMoodHistory();
     updateWidget(entry);
 
     document.getElementById("mood-note").value = "";
     sendMoodNotification();
-}
-
-async function clearAllMoods() {
-    if (!confirm("Sei sicuro di voler cancellare tutti i sentimenti?")) return;
-
-    // prendi tutti i mood
-    const moods = await window.getMoods();
-
-    // rimuovili uno a uno
-    for (const m of moods) {
-        await window.deleteMood(m.id); // NON ESISTE ANCORA → lo aggiungo dopo
-    }
-
-    moodHistory = [];
-    updateMoodHistory();
-
-    const widget = document.getElementById("mood-widget");
-    widget.style.display = "none";
 }
 
 /* Aggiorna storico */
@@ -1035,66 +1012,58 @@ function updateMoodHistory() {
         .join("");
 }
 
-/* Widget update */
+/* Aggiorna widget */
 function updateWidget(entry) {
     const widget = document.getElementById("mood-widget");
-    const emojiSpan = document.getElementById("mood-widget-emoji");
-    const textSpan = document.getElementById("mood-widget-text");
-
-    emojiSpan.innerText = entry.emoji;
-    textSpan.innerText = entry.note;
-
     widget.style.background = `${entry.color}dd`;
     widget.style.backdropFilter = "blur(6px)";
     widget.style.border = `1px solid ${entry.color}70`;
     widget.style.boxShadow = `0 0 15px ${entry.color}90`;
-
     widget.style.display = "flex";
+
+    document.getElementById("mood-widget-emoji").innerText = entry.emoji;
+    document.getElementById("mood-widget-text").innerText = entry.note;
 
     widget.classList.remove("widget-pulse");
     void widget.offsetWidth;
     widget.classList.add("widget-pulse");
 }
 
+/* Carica mood da Firestore */
 async function loadMoodsFromFirestore() {
     const moods = await window.getMoods();
-
-    // ordina per data (quelli nuovi in alto)
     moods.sort((a, b) => b.timestamp - a.timestamp);
 
     moodHistory = moods;
     updateMoodHistory();
 
-    // widget (mostra ultimo mood salvato)
-    if (moods.length > 0) {
-        updateWidget(moods[0]);
-    }
+    if (moods.length > 0) updateWidget(moods[0]);
 }
 
-async function loadLastMood() {
-    const moods = await window.getMoods(); // tutti i sentimenti
-    if (!moods.length) return;
+/* Cancella tutti i mood */
+async function clearAllMoods() {
+    if (!confirm("Sei sicuro di voler cancellare tutti i sentimenti?")) return;
 
-    // Ordina per data crescente o timestamp se lo salvi
-    moods.sort((a, b) => b.timestamp - a.timestamp);
-    const lastMood = moods[0]; // l'ultimo inserito
+    const moods = await window.getMoods();
+    for (const m of moods) await window.deleteMood(m.id);
 
-    updateWidget(lastMood);
+    moodHistory = [];
+    updateMoodHistory();
+    document.getElementById("mood-widget").style.display = "none";
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    loadMoodsFromFirestore();
-});
-
-/* Animazione notifica opzione B */
+/* Notifica animata */
 function sendMoodNotification() {
     const box = document.getElementById("mood-notification");
-
     box.classList.add("show");
-    setTimeout(() => {
-        box.classList.remove("show");
-    }, 2600);
+    setTimeout(() => box.classList.remove("show"), 2600);
 }
+
+/* Carica all'avvio e ogni 5 secondi per aggiornamenti cross-device */
+document.addEventListener("DOMContentLoaded", () => {
+    loadMoodsFromFirestore();
+    setInterval(loadMoodsFromFirestore, 5000); // aggiorna widget e lista
+});
 
 // ---------- ORACOLO ----------
 let selectedOracleTheme = "love";
